@@ -1,0 +1,36 @@
+{
+    "name": "survos/loc-bundle",
+    "description": "Symfony bundle client for the Library of Congress JSON API (loc.gov) — search, collections, items, and raw-resource extraction.",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": ["symfony", "loc", "library-of-congress", "oral-history", "harvester"],
+    "autoload": {
+        "psr-4": {
+            "Survos\\LocBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Survos\\LocBundle\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": "^8.5",
+        "survos/kit-bundle": "^2.5",
+        "symfony/config": "^8.1",
+        "symfony/console": "^8.1",
+        "symfony/dependency-injection": "^8.1",
+        "symfony/http-client": "^8.1",
+        "symfony/http-kernel": "^8.1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.0",
+        "symfony/framework-bundle": "^8.1",
+        "phpstan/phpstan": "^2.0"
+    },
+    "extra": {
+        "symfony": {
+            "require": "^8.1"
+        }
+    }
+}
