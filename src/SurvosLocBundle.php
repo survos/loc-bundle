@@ -9,10 +9,12 @@ use Survos\Kit\SurvosKitBundle;
 use Survos\LocBundle\Client\LocClient;
 use Survos\LocBundle\Client\LocClientInterface;
 use Survos\LocBundle\Client\UrlNormalizer;
+use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Kernel\RequiredBundle;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\HttpClient\CachingHttpClient;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 #[RequiredBundle(SurvosKitBundle::class)]
@@ -22,6 +24,7 @@ final class SurvosLocBundle extends AbstractSurvosBundle
     private const DEFAULT_BASE_URL = 'https://www.loc.gov';
     private const DEFAULT_USER_AGENT = 'Survos LocBundle/0.1 (+https://github.com/survos/mono)';
     private const DEFAULT_TIMEOUT = 30;
+    private const DEFAULT_CACHE_MAX_TTL = 86400;
 
     public function configure(DefinitionConfigurator $definition): void
     {
@@ -40,6 +43,15 @@ final class SurvosLocBundle extends AbstractSurvosBundle
                     ->min(1)
                     ->info('HTTP timeout, in seconds, for the scoped loc.client.')
                 ->end()
+                ->booleanNode('cache_enabled')
+                    ->defaultTrue()
+                    ->info('Wrap the client in Symfony\'s RFC 9111 CachingHttpClient. LOC already sends real Cache-Control/ETag headers (24h on item/collection JSON, up to 1 year on tile.loc.gov static files), so this is a correctness-preserving speedup, not a staleness risk — set false only to debug raw request/response behavior.')
+                ->end()
+                ->integerNode('cache_max_ttl')
+                    ->defaultValue(self::DEFAULT_CACHE_MAX_TTL)
+                    ->min(1)
+                    ->info('Upper bound on how long a response is cached, even if LOC sends a longer max-age.')
+                ->end()
             ->end();
     }
 
@@ -54,8 +66,27 @@ final class SurvosLocBundle extends AbstractSurvosBundle
 
         $services->set(UrlNormalizer::class);
 
+        $clientId = 'loc.client';
+        if ($config['cache_enabled']) {
+            $services->set('survos_loc.http_cache', FilesystemTagAwareAdapter::class)
+                ->args(['loc_http', $config['cache_max_ttl'], '%kernel.cache_dir%/loc_http']);
+
+            $services->set('survos_loc.caching_client', CachingHttpClient::class)
+                ->args([
+                    service('loc.client'),
+                    service('survos_loc.http_cache'),
+                    // CachingHttpClient resolves URLs itself before delegating — it does NOT
+                    // inherit the decorated client's own base_uri default option, so a relative
+                    // request (every LocClient call) throws "scheme is missing" without this.
+                    ['base_uri' => $config['base_url'] ?? self::DEFAULT_BASE_URL],
+                    true,
+                    $config['cache_max_ttl'],
+                ]);
+            $clientId = 'survos_loc.caching_client';
+        }
+
         $services->set(LocClient::class)
-            ->arg('$httpClient', service('loc.client'));
+            ->arg('$httpClient', service($clientId));
         $services->alias(LocClientInterface::class, LocClient::class)->public();
     }
 
