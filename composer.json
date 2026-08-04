@@ -16,6 +16,7 @@
     },
     "require": {
         "php": "^8.5",
+        "survos/fetch-bundle": "^2.5",
         "survos/kit-bundle": "^2.5",
         "symfony/cache": "^8.1",
         "symfony/config": "^8.1",

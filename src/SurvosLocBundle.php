@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace Survos\LocBundle;
 
+use Survos\FetchBundle\Http\CachingHttpClientFactory;
 use Survos\Kit\AbstractSurvosBundle;
 use Survos\Kit\SurvosKitBundle;
 use Survos\LocBundle\Client\LocClient;
 use Survos\LocBundle\Client\LocClientInterface;
 use Survos\LocBundle\Client\UrlNormalizer;
-use Symfony\Component\Cache\Adapter\FilesystemTagAwareAdapter;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Kernel\RequiredBundle;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
-use Symfony\Component\HttpClient\CachingHttpClient;
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 #[RequiredBundle(SurvosKitBundle::class)]
@@ -68,21 +67,14 @@ final class SurvosLocBundle extends AbstractSurvosBundle
 
         $clientId = 'loc.client';
         if ($config['cache_enabled']) {
-            $services->set('survos_loc.http_cache', FilesystemTagAwareAdapter::class)
-                ->args(['loc_http', $config['cache_max_ttl'], '%kernel.cache_dir%/loc_http']);
-
-            $services->set('survos_loc.caching_client', CachingHttpClient::class)
-                ->args([
-                    service('loc.client'),
-                    service('survos_loc.http_cache'),
-                    // CachingHttpClient resolves URLs itself before delegating — it does NOT
-                    // inherit the decorated client's own base_uri default option, so a relative
-                    // request (every LocClient call) throws "scheme is missing" without this.
-                    ['base_uri' => $config['base_url'] ?? self::DEFAULT_BASE_URL],
-                    true,
-                    $config['cache_max_ttl'],
-                ]);
-            $clientId = 'survos_loc.caching_client';
+            $clientId = CachingHttpClientFactory::register(
+                container: $container,
+                idPrefix: 'survos_loc',
+                decoratedClientId: 'loc.client',
+                cacheDir: '%kernel.cache_dir%/loc_http',
+                maxTtl: $config['cache_max_ttl'],
+                baseUri: $config['base_url'] ?? self::DEFAULT_BASE_URL,
+            );
         }
 
         $services->set(LocClient::class)
