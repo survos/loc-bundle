@@ -18,29 +18,25 @@ console commands. Deliberately **not** included yet, per the issue's own phasing
 `Item::$resources` and `Item::$raw` already carry everything a resource walker would need — adding
 one is additive, not a breaking change to this phase.
 
-### Fetch strategy (cache/retry) — caching done, retry still open
+### Fetch strategy (cache/retry)
 
-Corrects an earlier version of this note: **caching is already done** (survos/mono@ce974f98,
-2026-08-04), just not via `PersistentFetcher` like most other bundles. `LocClient`'s
-`$httpClient` is `survos_loc.caching_client` — a Symfony RFC 9111 `CachingHttpClient`
-(`fetch-bundle`'s `CachingHttpClientFactory`, `cache_enabled: true` by default) wrapping the
-scoped `loc.client`. LOC sends real `Cache-Control`/`ETag` headers (24h on item/collection JSON,
-up to 1 year on `tile.loc.gov` static files), so this obeys the *origin's own* freshness window
-— capped at `cache_max_ttl` (default 86400s) even if LOC sends a longer `max-age` — rather than
-`PersistentFetcher`'s app-controlled "cache forever until forgotten" model. That's the *more*
-correct choice here, not a lesser one: LOC already tells us exactly how long each response is
-good for.
+**Caching:** `LocClient`'s `$httpClient` is `survos_loc.caching_client` — a Symfony RFC 9111
+`CachingHttpClient` (`fetch-bundle`'s `CachingHttpClientFactory`, `cache_enabled: true` by
+default) wrapping the scoped `loc.client`. LOC sends real `Cache-Control`/`ETag` headers (24h on
+item/collection JSON, up to 1 year on `tile.loc.gov` static files), so this obeys the *origin's
+own* freshness window — capped at `cache_max_ttl` (default 86400s) even if LOC sends a longer
+`max-age` — rather than `PersistentFetcher`'s app-controlled "cache forever until forgotten"
+model. That's the *more* correct choice here, not a lesser one: LOC already tells us exactly how
+long each response is good for.
+
+**Retry:** the `loc.client` scoped client (see `prependExtension`) retries transport errors and
+HTTP 500/502/503/504 (Symfony's built-in `retry_failed`, exponential backoff). **429 is
+deliberately excluded** — it's surfaced as `RateLimitException` carrying the real `Retry-After`
+value precisely so a *caller* (a future Phase 4 Messenger consumer) can reschedule itself with
+the server-specified delay; auto-retrying it here would silently swallow that signal.
 
 Still genuinely missing (this bundle's own Phase 3, [survos/mono#23](https://github.com/survos/mono/issues/23)):
 
-- **Retry/backoff on transient failures and 5xx** — no `retry_failed` is configured on the
-  `loc.client` scoped client (see `prependExtension`). This is the one item worth doing now,
-  independent of the rest: add `retry_failed: {enabled: true, http_codes: [500, 502, 503, 504]}`
-  to the `loc.client` scoped-client config, the same mechanism (not `PersistentFetcher`) other
-  bundles used before this sweep. **Deliberately exclude 429 from that list** — LOC's 429 already
-  carries `Retry-After` and is surfaced as `RateLimitException` precisely so a *caller* (a future
-  Phase 4 Messenger consumer) can reschedule with the server-specified delay; auto-retrying 429 at
-  the HTTP-client layer would silently swallow that signal.
 - **Symfony RateLimiter integration** — proactive throttling of *outgoing* requests, unrelated to
   fetch-bundle entirely (`symfony/rate-limiter`, not an HTTP client concern). Only worth adding if
   LOC's own etiquette guidance documents a request-rate ceiling to stay under.

@@ -98,6 +98,13 @@ final class SurvosLocBundle extends AbstractSurvosBundle
                             'User-Agent' => $config['user_agent'] ?? self::DEFAULT_USER_AGENT,
                         ],
                         'timeout' => $config['timeout'] ?? self::DEFAULT_TIMEOUT,
+                        // 429 is deliberately NOT retried here -- it's surfaced as RateLimitException
+                        // with the real Retry-After value so a caller (e.g. a future Messenger
+                        // consumer) can reschedule itself. Auto-retrying it here would swallow that.
+                        'retry_failed' => [
+                            'enabled' => true,
+                            'http_codes' => [500, 502, 503, 504],
+                        ],
                     ],
                 ],
             ],
