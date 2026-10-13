@@ -42,6 +42,6 @@ final readonly class SearchResult
         $path = (string) parse_url($url, PHP_URL_PATH);
         $segments = array_values(array_filter(explode('/', $path)));
 
-        return $segments === [] ? null : end($segments);
+        return [] === $segments ? null : end($segments);
     }
 }

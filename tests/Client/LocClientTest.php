@@ -34,7 +34,7 @@ final class LocClientTest extends TestCase
     {
         $calls = 0;
         $httpClient = new MockHttpClient(function () use (&$calls): MockResponse {
-            $calls++;
+            ++$calls;
 
             if (1 === $calls) {
                 return new MockResponse(json_encode([

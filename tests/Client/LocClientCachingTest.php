@@ -19,7 +19,7 @@ final class LocClientCachingTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->cacheDir = sys_get_temp_dir() . '/loc-bundle-cache-test-' . bin2hex(random_bytes(4));
+        $this->cacheDir = sys_get_temp_dir().'/loc-bundle-cache-test-'.bin2hex(random_bytes(4));
     }
 
     protected function tearDown(): void
@@ -31,7 +31,7 @@ final class LocClientCachingTest extends TestCase
     {
         $calls = 0;
         $mock = new MockHttpClient(function () use (&$calls): MockResponse {
-            $calls++;
+            ++$calls;
 
             return new MockResponse(
                 json_encode(['item' => ['title' => 'Cached Item'], 'resources' => []]),

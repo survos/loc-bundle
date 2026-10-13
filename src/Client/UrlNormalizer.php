@@ -36,13 +36,13 @@ final class UrlNormalizer
             throw new \InvalidArgumentException(sprintf('Refusing to fetch "%s": host is not an allowed loc.gov host.', $url));
         }
 
-        $normalized = 'https://' . $parts['host'] . ($parts['path'] ?? '/');
+        $normalized = 'https://'.$parts['host'].($parts['path'] ?? '/');
         if (!str_ends_with($normalized, '/')) {
             $normalized .= '/';
         }
 
         if (isset($parts['query'])) {
-            $normalized .= '?' . $parts['query'];
+            $normalized .= '?'.$parts['query'];
         }
 
         return $normalized;

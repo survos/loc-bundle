@@ -94,11 +94,7 @@ final readonly class LocClient implements LocClientInterface
 
             if (429 === $statusCode) {
                 $retryAfter = $response->getHeaders(false)['retry-after'][0] ?? null;
-                throw new RateLimitException(
-                    sprintf('LOC rate limit hit for %s.', $url),
-                    $url,
-                    null !== $retryAfter ? (int) $retryAfter : null,
-                );
+                throw new RateLimitException(sprintf('LOC rate limit hit for %s.', $url), $url, null !== $retryAfter ? (int) $retryAfter : null);
             }
 
             if ($statusCode >= 300) {
@@ -124,6 +120,6 @@ final readonly class LocClient implements LocClientInterface
     {
         $snippet = trim(substr($content, 0, 40));
 
-        return str_starts_with($snippet, '<') ? 'HTML' : ($snippet === '' ? 'an empty body' : $snippet);
+        return str_starts_with($snippet, '<') ? 'HTML' : ('' === $snippet ? 'an empty body' : $snippet);
     }
 }
